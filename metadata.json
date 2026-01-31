@@ -1,0 +1,7 @@
+{
+  "name": "LifeLink AI Blood Bank",
+  "description": "A production-grade blood bank management system featuring real-time availability tracking, Dijkstra-based routing, and AI-powered medical assistance.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
