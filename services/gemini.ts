@@ -5,10 +5,13 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * AI Assistant (BloodBot) using Gemini 3 Pro
+ * Correctly uses the history parameter to maintain conversational context.
  */
 export async function getBloodBotResponse(message: string, history: { role: 'user' | 'model', parts: { text: string }[] }[]) {
   const chat = ai.chats.create({
     model: 'gemini-3-pro-preview',
+    // Inject conversation history for context-aware responses
+    history: history,
     config: {
       systemInstruction: `You are LifeLink AI Medical Assistant. 
       Your expertise includes:
