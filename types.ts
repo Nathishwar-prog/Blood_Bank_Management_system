@@ -8,7 +8,8 @@ export interface BloodBank {
   latitude: number;
   longitude: number;
   contact_number: string;
-  units_available: number;
+  units_available: number; // Primary requested blood type units
+  inventory: Record<BloodType, number>; // All blood types units
   distance_km: number;
   eta_minutes: number;
   google_maps_url: string;

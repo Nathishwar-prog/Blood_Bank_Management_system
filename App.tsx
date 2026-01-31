@@ -17,6 +17,9 @@ const MOCK_CENTERS: BloodBank[] = [
     longitude: 77.601,
     contact_number: '+1-800-BLOOD-01',
     units_available: 12,
+    inventory: {
+      'A+': 12, 'A-': 5, 'B+': 8, 'B-': 2, 'O+': 20, 'O-': 3, 'AB+': 4, 'AB-': 1
+    },
     distance_km: 1.2,
     eta_minutes: 5,
     google_maps_url: 'https://maps.google.com'
@@ -29,6 +32,9 @@ const MOCK_CENTERS: BloodBank[] = [
     longitude: 77.610,
     contact_number: '+1-800-BLOOD-02',
     units_available: 4,
+    inventory: {
+      'A+': 4, 'A-': 0, 'B+': 12, 'B-': 1, 'O+': 15, 'O-': 6, 'AB+': 2, 'AB-': 0
+    },
     distance_km: 2.8,
     eta_minutes: 12,
     google_maps_url: 'https://maps.google.com'
@@ -61,7 +67,12 @@ const App: React.FC = () => {
     setIsSearching(true);
     // Simulate Backend API Call
     setTimeout(() => {
-      setResults(MOCK_CENTERS);
+      // In a real app, we'd update units_available based on selectedBloodType from the full inventory
+      const updatedResults = MOCK_CENTERS.map(center => ({
+        ...center,
+        units_available: center.inventory[selectedBloodType]
+      }));
+      setResults(updatedResults);
       setIsSearching(false);
     }, 1500);
   };
@@ -106,8 +117,8 @@ const App: React.FC = () => {
             <h1 className="text-xl font-bold tracking-tight">LifeLink AI</h1>
           </div>
           <nav className="hidden md:flex gap-6 font-medium">
-            <button onClick={() => setActiveTab('search')} className={activeTab === 'search' ? 'border-b-2' : ''}>Find Blood</button>
-            <button onClick={() => { setActiveTab('info'); fetchRegionalNews(); }} className={activeTab === 'info' ? 'border-b-2' : ''}>Regional Alerts</button>
+            <button onClick={() => setActiveTab('search')} className={activeTab === 'search' ? 'border-b-2 pb-1' : ''}>Find Blood</button>
+            <button onClick={() => { setActiveTab('info'); fetchRegionalNews(); }} className={activeTab === 'info' ? 'border-b-2 pb-1' : ''}>Regional Alerts</button>
           </nav>
         </div>
       </header>
@@ -116,7 +127,7 @@ const App: React.FC = () => {
         {activeTab === 'search' ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Search Panel */}
-            <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit sticky top-24">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
                 <i className="fa-solid fa-magnifying-glass text-red-600"></i>
                 Emergency Search
@@ -172,40 +183,58 @@ const App: React.FC = () => {
                           <i className="fa-solid fa-map-pin"></i> {center.address}
                         </p>
                       </div>
-                      <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                        {selectedBloodType} Available
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${center.units_available > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                        {selectedBloodType}: {center.units_available} Units
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 border-y border-slate-50 py-4 mb-4">
-                      <div className="text-center">
-                        <p className="text-xs text-slate-400 font-semibold">DISTANACE</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 border-y border-slate-50 py-4 mb-4">
+                      <div className="text-center border-r border-slate-100">
+                        <p className="text-xs text-slate-400 font-semibold">DISTANCE</p>
                         <p className="text-lg font-bold text-slate-700">{center.distance_km} km</p>
                       </div>
-                      <div className="text-center">
-                        <p className="text-xs text-slate-400 font-semibold">ETA</p>
+                      <div className="text-center sm:border-r border-slate-100">
+                        <p className="text-xs text-slate-400 font-semibold">EST. TRAVEL TIME</p>
                         <p className="text-lg font-bold text-slate-700">{center.eta_minutes} mins</p>
                       </div>
-                      <div className="text-center">
-                        <p className="text-xs text-slate-400 font-semibold">STOCK</p>
-                        <p className="text-lg font-bold text-green-600">{center.units_available} units</p>
+                      <div className="text-center col-span-2 sm:col-span-1">
+                        <p className="text-xs text-slate-400 font-semibold">CONTACT</p>
+                        <p className="text-sm font-bold text-slate-700">{center.contact_number}</p>
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    {/* New Feature: Full Inventory Breakdown */}
+                    <div className="mb-6">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <i className="fa-solid fa-boxes-stacked"></i> Full Inventory Breakdown
+                      </h4>
+                      <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                        {(Object.entries(center.inventory) as [BloodType, number][]).map(([type, units]) => (
+                          <div 
+                            key={type} 
+                            className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${type === selectedBloodType ? 'bg-red-50 border-red-200 ring-2 ring-red-100' : 'bg-slate-50 border-slate-100'}`}
+                          >
+                            <span className={`text-[10px] font-bold ${type === selectedBloodType ? 'text-red-600' : 'text-slate-500'}`}>{type}</span>
+                            <span className={`text-sm font-black ${units > 0 ? 'text-slate-800' : 'text-slate-300'}`}>{units}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <a 
                         href={`tel:${center.contact_number}`} 
-                        className="flex-1 bg-slate-100 text-slate-700 py-2 rounded-lg text-center font-semibold hover:bg-slate-200"
+                        className="flex-1 bg-slate-100 text-slate-700 py-3 rounded-xl text-center font-bold hover:bg-slate-200 transition-colors"
                       >
-                        <i className="fa-solid fa-phone mr-2"></i> Call Center
+                        <i className="fa-solid fa-phone mr-2"></i> Call Now
                       </a>
                       <a 
                         href={center.google_maps_url} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="flex-1 bg-red-50 text-red-600 py-2 rounded-lg text-center font-semibold hover:bg-red-100"
+                        className="flex-1 bg-red-600 text-white py-3 rounded-xl text-center font-bold hover:bg-red-700 shadow-md shadow-red-100 transition-all"
                       >
-                        <i className="fa-solid fa-route mr-2"></i> Get Route
+                        <i className="fa-solid fa-route mr-2"></i> Get Directions
                       </a>
                     </div>
                   </div>

@@ -10,20 +10,34 @@ router = APIRouter()
 
 @router.post("/search-blood", response_model=BloodSearchResponse)
 async def search_blood(req: BloodSearchRequest, db: Session = Depends(get_db)):
-    # Use PostGIS to find blood banks with availability
+    # Use PostGIS to find blood banks with availability and aggregate full inventory as JSON
     query = text("""
         SELECT 
             bb.id as blood_bank_id,
             bb.name,
             bb.latitude,
             bb.longitude,
+            bb.address,
+            bb.contact_number,
             ST_Distance(bb.location, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) / 1000 as distance_km,
-            bi.units_available
+            (
+                SELECT jsonb_object_agg(blood_type, units_available)
+                FROM blood_inventory
+                WHERE blood_bank_id = bb.id
+            ) as full_inventory,
+            (
+                SELECT units_available 
+                FROM blood_inventory 
+                WHERE blood_bank_id = bb.id AND blood_type = :blood_type
+            ) as requested_units
         FROM blood_banks bb
-        JOIN blood_inventory bi ON bb.id = bi.blood_bank_id
-        WHERE bi.blood_type = :blood_type
-          AND bi.units_available > 0
-          AND bb.is_active = true
+        WHERE bb.is_active = true
+          AND EXISTS (
+              SELECT 1 FROM blood_inventory 
+              WHERE blood_bank_id = bb.id 
+              AND blood_type = :blood_type 
+              AND units_available > 0
+          )
         ORDER BY distance_km ASC
         LIMIT 5
     """)
@@ -37,15 +51,18 @@ async def search_blood(req: BloodSearchRequest, db: Session = Depends(get_db)):
     formatted_results = []
     for row in results:
         # Business logic for ETA calculation (simulated)
-        eta = int(row.distance_km * 2.5) # simplified model
+        eta = int(row.distance_km * 2.5) # simplified model: 2.5 mins per km
         formatted_results.append({
-            "blood_bank_id": str(row.blood_bank_id),
+            "id": str(row.blood_bank_id),
             "name": row.name,
+            "address": row.address,
             "distance_km": round(row.distance_km, 2),
             "eta_minutes": eta,
-            "units_available": row.units_available,
+            "units_available": row.requested_units or 0,
+            "inventory": row.full_inventory or {},
             "latitude": row.latitude,
             "longitude": row.longitude,
+            "contact_number": row.contact_number,
             "google_maps_url": f"https://www.google.com/maps/dir/?api=1&destination={row.latitude},{row.longitude}"
         })
 
