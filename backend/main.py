@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from app.database import engine, get_db, Base
-from app.api import search, auth
+from app.api import search, auth, insights
 import uvicorn
 
 app = FastAPI(title="LifeLink AI Blood Bank API")
@@ -20,6 +20,7 @@ app.add_middleware(
 
 app.include_router(search.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
+app.include_router(insights.router, prefix="/api")
 
 @app.get("/health")
 def health_check():
