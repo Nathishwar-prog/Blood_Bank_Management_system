@@ -1,15 +1,13 @@
-
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from app.database import engine, get_db, Base
-from app.api import search, auth, insights
-import uvicorn
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+from app.api import search, auth
 
 app = FastAPI(title="LifeLink AI Blood Bank API")
-
-# Enable PostGIS and User tables
-Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,4 +25,5 @@ def health_check():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
