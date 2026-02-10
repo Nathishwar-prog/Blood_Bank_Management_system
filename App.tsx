@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
-import { 
-  getBloodBotResponse, 
+import {
+  getBloodBotResponse,
   searchBloodShortages,
   getHealthInsight
 } from './services/gemini';
@@ -32,8 +31,8 @@ const StarRating: React.FC<{ rating: number, count?: number, size?: 'sm' | 'md' 
 };
 
 // --- Modern Map Component ---
-const BloodMap: React.FC<{ 
-  results: BloodBank[], 
+const BloodMap: React.FC<{
+  results: BloodBank[],
   userLocation: { lat: number, lng: number } | null,
   selectedBloodType: BloodType,
   onSelectCenter: (center: BloodBank) => void
@@ -63,8 +62,8 @@ const BloodMap: React.FC<{
     const bounds: L.LatLngExpression[] = [];
     if (userLocation) {
       const userPos: [number, number] = [userLocation.lat, userLocation.lng];
-      L.marker(userPos, { 
-        icon: L.divIcon({ className: 'custom-div-icon', html: '<div class="user-pulse"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) 
+      L.marker(userPos, {
+        icon: L.divIcon({ className: 'custom-div-icon', html: '<div class="user-pulse"></div>', iconSize: [14, 14], iconAnchor: [7, 7] })
       }).addTo(markersLayer.current);
       bounds.push(userPos);
     }
@@ -93,8 +92,8 @@ const BloodMap: React.FC<{
       <div ref={mapContainerRef} className="w-full h-[350px] md:h-[500px] z-0" />
       <div className="absolute top-6 left-6 z-[1] flex gap-2">
         <div className="glass-card px-4 py-2 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-2">
-           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-           <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Live Network Status</span>
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Live Network Status</span>
         </div>
       </div>
     </div>
@@ -161,8 +160,8 @@ const Dashboard: React.FC<{ role: Role, onNavigate: (tab: any) => void, onIntern
       </div>
       <div className="bento-grid">
         {allowedCards.map(c => (
-          <div 
-            key={c.id} 
+          <div
+            key={c.id}
             onClick={() => c.id === 'health' ? onNavigate('health') : onInternalView(c.id as DashboardView)}
             className="group relative bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all cursor-pointer overflow-hidden"
           >
@@ -195,7 +194,7 @@ const App: React.FC = () => {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number, lng: number } | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
 
   useEffect(() => {
@@ -207,25 +206,72 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // --- Authentication State ---
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // --- Auth Handlers ---
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    try {
+      const res = await fetch('http://localhost:8000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(formData)),
+      });
+      if (!res.ok) throw new Error('Login failed');
+      const data = await res.json();
+      localStorage.setItem('token', data.access_token);
+      setToken(data.access_token);
+      setActiveRole(data.role);
+      setDashboardView('main');
+    } catch (err) {
+      setAuthError('Invalid credentials');
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+    try {
+      const res = await fetch('http://localhost:8000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(formData)),
+      });
+      if (!res.ok) throw new Error('Registration failed');
+      const data = await res.json();
+      alert('Registration successful! Please login.');
+      setDashboardView('login');
+    } catch (err) {
+      setAuthError('Registration failed');
+    }
+  };
+
   const handleSearch = async () => {
     setIsSearching(true);
-    // Simulated Production Data
-    const MOCK_CENTERS: BloodBank[] = [
-      { 
-        id: '1', name: 'Metropolitan Red Cross', address: '123 Healthcare Blvd', latitude: 12.975, longitude: 77.601, contact_number: '+1-555-0101', 
-        units_available: 12, inventory: { 'A+': 12, 'A-': 3, 'B+': 8, 'B-': 1, 'O+': 20, 'O-': 4, 'AB+': 4, 'AB-': 1 }, 
-        distance_km: 1.2, eta_minutes: 5, google_maps_url: '#', rating: 4.8, review_count: 128, reviews: [] 
-      },
-      { 
-        id: '2', name: 'St. Jude General', address: '45 Medical Lane', latitude: 12.980, longitude: 77.610, contact_number: '+1-555-0102', 
-        units_available: 4, inventory: { 'A+': 4, 'A-': 0, 'B+': 12, 'B-': 1, 'O+': 15, 'O-': 6, 'AB+': 2, 'AB-': 0 }, 
-        distance_km: 2.8, eta_minutes: 12, google_maps_url: '#', rating: 4.2, review_count: 54, reviews: [] 
-      }
-    ];
-    setTimeout(() => {
-      setResults(MOCK_CENTERS);
+    try {
+      const res = await fetch('http://localhost:8000/api/search-blood', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          latitude: userLocation?.lat || 12.9716,
+          longitude: userLocation?.lng || 77.5946,
+          blood_type: selectedBloodType,
+          sort_by: sortBy === 'distance' ? 'distance_km' : 'eta_minutes' // fixed enum mismatch if any
+        })
+      });
+      const data = await res.json();
+      setResults(data.results || []);
+    } catch (err) {
+      console.error("Search failed", err);
+    } finally {
       setIsSearching(false);
-    }, 800);
+    }
   };
 
   const handleChatSubmit = async (e: React.FormEvent) => {
@@ -257,7 +303,7 @@ const App: React.FC = () => {
           </div>
           <nav className="hidden md:flex items-center gap-8">
             {['search', 'health', 'dashboard'].map(tab => (
-              <button 
+              <button
                 key={tab}
                 onClick={() => { setActiveTab(tab as any); setDashboardView('main'); }}
                 className={`text-sm font-bold capitalize transition-all ${activeTab === tab ? 'text-red-500' : 'text-slate-400 hover:text-slate-600'}`}
@@ -265,8 +311,8 @@ const App: React.FC = () => {
                 {tab}
               </button>
             ))}
-            <select 
-              value={activeRole} 
+            <select
+              value={activeRole}
               onChange={(e) => { setActiveRole(e.target.value as Role); setDashboardView('main'); }}
               className="bg-slate-100 px-4 py-2 rounded-xl text-xs font-bold outline-none border-none cursor-pointer"
             >
@@ -290,8 +336,8 @@ const App: React.FC = () => {
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Blood Modality</label>
-                    <select 
-                      value={selectedBloodType} 
+                    <select
+                      value={selectedBloodType}
                       onChange={(e) => setSelectedBloodType(e.target.value as BloodType)}
                       className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-red-400 rounded-2xl font-bold transition-all outline-none"
                     >
@@ -302,9 +348,9 @@ const App: React.FC = () => {
                     <button onClick={() => setSortBy('distance')} className={`flex-1 py-3 text-xs font-black rounded-xl transition-all border-2 ${sortBy === 'distance' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-slate-100 text-slate-400'}`}>DIST-OPT</button>
                     <button onClick={() => setSortBy('eta')} className={`flex-1 py-3 text-xs font-black rounded-xl transition-all border-2 ${sortBy === 'eta' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-slate-100 text-slate-400'}`}>ETA-FAST</button>
                   </div>
-                  <button 
-                    onClick={handleSearch} 
-                    disabled={isSearching} 
+                  <button
+                    onClick={handleSearch}
+                    disabled={isSearching}
                     className="w-full bg-slate-900 text-white py-5 rounded-[1.8rem] font-bold text-lg shadow-xl hover:bg-slate-800 hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50"
                   >
                     {isSearching ? <i className="fa-solid fa-spinner animate-spin"></i> : "Search Active Stock"}
@@ -315,8 +361,8 @@ const App: React.FC = () => {
               {results.length > 0 && (
                 <div className="space-y-4 max-h-[400px] overflow-y-auto scrollbar-hide">
                   {results.map(c => (
-                    <div 
-                      key={c.id} 
+                    <div
+                      key={c.id}
                       onClick={() => setSelectedCenter(c)}
                       className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-lg transition-all cursor-pointer group"
                     >
@@ -346,45 +392,86 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'dashboard' && (activeRole === 'GUEST' ? (
-          <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
-             <i className="fa-solid fa-lock text-5xl text-slate-200 mb-6"></i>
-             <h3 className="text-xl font-bold text-slate-400 uppercase tracking-widest">Portal Restricted</h3>
-             <p className="text-slate-400">Please switch role in the navigation bar to access dashboard views.</p>
-          </div>
-        ) : (
+        {activeTab === 'dashboard' && (
           <div className="bg-white p-10 rounded-[3rem] shadow-sm border border-slate-100">
-             {dashboardView === 'main' && <Dashboard role={activeRole} onNavigate={setActiveTab} onInternalView={setDashboardView} />}
-             {dashboardView === 'screening' && <DonorScreening onPass={() => setDashboardView('registration')} onBack={() => setDashboardView('main')} />}
-             {dashboardView === 'registration' && <div className="p-10 text-center space-y-4"><i className="fa-solid fa-check-circle text-emerald-500 text-5xl"></i><h2 className="text-2xl font-bold">Registration Success</h2><button onClick={() => setDashboardView('main')} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold">Back home</button></div>}
-             {dashboardView !== 'main' && dashboardView !== 'screening' && dashboardView !== 'registration' && (
-               <div className="flex flex-col items-center gap-6 py-20">
-                 <h2 className="text-3xl font-black text-slate-800 capitalize">{dashboardView.replace('_', ' ')} View</h2>
-                 <p className="text-slate-400">Module content placeholder for MVP.</p>
-                 <button onClick={() => setDashboardView('main')} className="bg-slate-100 text-slate-600 px-6 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all">Go Back</button>
-               </div>
-             )}
+            {dashboardView === 'login' && (
+              <div className="max-w-md mx-auto space-y-6">
+                <h2 className="text-3xl font-black text-slate-800 text-center">Member Access</h2>
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <input name="email" type="email" placeholder="Email Address" required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" />
+                  <input name="password" type="password" placeholder="Password" required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" />
+                  <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all">Secure Login</button>
+                </form>
+                <div className="text-center">
+                  <p className="text-slate-400 text-sm font-bold">New organization? <button onClick={() => setDashboardView('register')} className="text-red-500">Register</button></p>
+                </div>
+                {authError && <div className="p-4 bg-rose-50 text-rose-500 text-center font-bold rounded-2xl">{authError}</div>}
+              </div>
+            )}
+
+            {dashboardView === 'register' && (
+              <div className="max-w-md mx-auto space-y-6">
+                <h2 className="text-3xl font-black text-slate-800 text-center">Join Network</h2>
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <input name="full_name" type="text" placeholder="Full Name / Organization" required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" />
+                  <input name="email" type="email" placeholder="Email Address" required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" />
+                  <input name="password" type="password" placeholder="Create Password" required className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold" />
+                  <select name="role" className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold">
+                    <option value="DONOR">Donor</option>
+                    <option value="PATIENT">Patient</option>
+                    <option value="STAFF">Hospital Staff</option>
+                    <option value="ADMIN">System Admin</option>
+                  </select>
+                  <button type="submit" className="w-full py-4 bg-red-500 text-white rounded-2xl font-bold hover:bg-red-600 transition-all">Create Account</button>
+                </form>
+                <div className="text-center">
+                  <p className="text-slate-400 text-sm font-bold">Already a member? <button onClick={() => setDashboardView('login')} className="text-slate-900">Login</button></p>
+                </div>
+              </div>
+            )}
+
+            {dashboardView === 'main' && (
+              !token ? (
+                <div className="text-center py-20">
+                  <i className="fa-solid fa-lock text-5xl text-slate-200 mb-6"></i>
+                  <h3 className="text-xl font-bold text-slate-400 uppercase tracking-widest mb-4">Portal Restricted</h3>
+                  <button onClick={() => setDashboardView('login')} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold">Login to Access</button>
+                </div>
+              ) : (
+                <Dashboard role={activeRole} onNavigate={setActiveTab} onInternalView={setDashboardView} />
+              )
+            )}
+
+            {dashboardView === 'screening' && <DonorScreening onPass={() => setDashboardView('registration')} onBack={() => setDashboardView('main')} />}
+            {dashboardView === 'registration' && <div className="p-10 text-center space-y-4"><i className="fa-solid fa-check-circle text-emerald-500 text-5xl"></i><h2 className="text-2xl font-bold">Registration Success</h2><button onClick={() => setDashboardView('main')} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold">Back home</button></div>}
+            {dashboardView !== 'main' && dashboardView !== 'login' && dashboardView !== 'register' && dashboardView !== 'screening' && dashboardView !== 'registration' && (
+              <div className="flex flex-col items-center gap-6 py-20">
+                <h2 className="text-3xl font-black text-slate-800 capitalize">{dashboardView.replace('_', ' ')} View</h2>
+                <p className="text-slate-400">Module content placeholder for MVP.</p>
+                <button onClick={() => setDashboardView('main')} className="bg-slate-100 text-slate-600 px-6 py-3 rounded-xl font-bold hover:bg-slate-200 transition-all">Go Back</button>
+              </div>
+            )}
           </div>
-        ))}
+        )}
 
         {activeTab === 'health' && (
           <div className="space-y-12 py-10">
-             <div className="text-center max-w-2xl mx-auto space-y-4">
-               <h2 className="text-5xl font-black text-slate-900 tracking-tight">Health Insights</h2>
-               <p className="text-slate-500 text-lg">Your clinical knowledge base for blood donation and recovery, powered by advanced medical AI.</p>
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-               {['Iron Absorption', 'Donor Recovery', 'Blood Compatibility', 'Emergency First Aid'].map((t, i) => (
-                 <div key={i} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer group">
-                   <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6 group-hover:rotate-12 transition-transform">
-                     <i className="fa-solid fa-sparkles"></i>
-                   </div>
-                   <h3 className="text-xl font-bold text-slate-800 mb-4">{t}</h3>
-                   <p className="text-slate-500 text-sm leading-relaxed mb-6">Learn about biological factors that impact your blood health and donation readiness.</p>
-                   <button className="text-red-500 font-bold text-sm flex items-center gap-2 group-hover:gap-4 transition-all">Explore AI Report <i className="fa-solid fa-arrow-right"></i></button>
-                 </div>
-               ))}
-             </div>
+            <div className="text-center max-w-2xl mx-auto space-y-4">
+              <h2 className="text-5xl font-black text-slate-900 tracking-tight">Health Insights</h2>
+              <p className="text-slate-500 text-lg">Your clinical knowledge base for blood donation and recovery, powered by advanced medical AI.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {['Iron Absorption', 'Donor Recovery', 'Blood Compatibility', 'Emergency First Aid'].map((t, i) => (
+                <div key={i} className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all cursor-pointer group">
+                  <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6 group-hover:rotate-12 transition-transform">
+                    <i className="fa-solid fa-sparkles"></i>
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-800 mb-4">{t}</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed mb-6">Learn about biological factors that impact your blood health and donation readiness.</p>
+                  <button className="text-red-500 font-bold text-sm flex items-center gap-2 group-hover:gap-4 transition-all">Explore AI Report <i className="fa-solid fa-arrow-right"></i></button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </main>
@@ -427,12 +514,12 @@ const App: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100">
-                   <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Response Time</p>
-                   <p className="text-xl font-black text-blue-900">{selectedCenter.eta_minutes} MINUTES</p>
+                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Response Time</p>
+                  <p className="text-xl font-black text-blue-900">{selectedCenter.eta_minutes} MINUTES</p>
                 </div>
                 <div className="p-6 bg-emerald-50/50 rounded-2xl border border-emerald-100">
-                   <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Route Status</p>
-                   <p className="text-xl font-black text-emerald-900">CLEAR</p>
+                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Route Status</p>
+                  <p className="text-xl font-black text-emerald-900">CLEAR</p>
                 </div>
               </div>
 
@@ -451,7 +538,7 @@ const App: React.FC = () => {
 
       {/* AI Assistant FAB and Chat Panel */}
       <div className="fixed bottom-8 right-8 z-[120]">
-        <button 
+        <button
           onClick={() => setChatOpen(!chatOpen)}
           className={`w-16 h-16 rounded-[1.8rem] shadow-2xl flex items-center justify-center transition-all ${chatOpen ? 'bg-slate-900 text-white' : 'bg-red-500 text-white hover:scale-110 active:scale-95'}`}
         >
@@ -482,8 +569,8 @@ const App: React.FC = () => {
               {isTyping && <div className="text-[10px] font-black text-slate-300 animate-pulse tracking-widest uppercase ml-2">PulseAI is generating...</div>}
             </div>
             <form onSubmit={handleChatSubmit} className="p-6 bg-white border-t border-slate-100 flex gap-3">
-              <input 
-                value={chatInput} 
+              <input
+                value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 placeholder="Ask about recovery, iron, or clinics..."
                 className="flex-1 bg-slate-50 px-5 py-4 rounded-2xl text-sm focus:outline-none focus:ring-2 ring-red-400/20 transition-all font-medium"
@@ -499,10 +586,10 @@ const App: React.FC = () => {
       <footer className="py-12 border-t border-slate-100 bg-white">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-3 grayscale opacity-50">
-             <div className="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center">
-                <i className="fa-solid fa-droplet text-white text-xs"></i>
-             </div>
-             <span className="font-black text-sm tracking-tighter">LifeLink OS v2.0</span>
+            <div className="w-8 h-8 bg-slate-900 rounded-xl flex items-center justify-center">
+              <i className="fa-solid fa-droplet text-white text-xs"></i>
+            </div>
+            <span className="font-black text-sm tracking-tighter">LifeLink OS v2.0</span>
           </div>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">SECURE CLINICAL NETWORK • ENCRYPTED P2P</p>
           <div className="flex gap-6 text-slate-400">

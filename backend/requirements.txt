@@ -1,9 +1,11 @@
 
-fastapi==0.109.2
-uvicorn==0.27.1
-sqlalchemy==2.0.27
-psycopg2-binary==2.9.9
-geoalchemy2==0.14.3
-pydantic==2.6.1
-python-jose[cryptography]==3.3.0
-google-maps-services-python==4.10.0
+fastapi>=0.109.2
+uvicorn>=0.27.1
+sqlalchemy>=2.0.27
+psycopg2-binary>=2.9.9
+geoalchemy2>=0.14.3
+pydantic>=2.6.1
+python-jose[cryptography]>=3.3.0
+googlemaps>=4.10.0
+python-dotenv>=1.0.0
+email-validator>=2.0.0
